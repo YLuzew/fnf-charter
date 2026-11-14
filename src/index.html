@@ -1,0 +1,228 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="theme-color" content="#08080c">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<title>敲谱机 · FNF Charter</title>
+<style>
+:root{
+  --bg:#08080c; --panel:#12121a; --line:#23232f; --txt:#e8e8f0; --dim:#7a7a8c;
+  --l:#c24b99; --d:#00e5ff; --u:#3dff5a; --r:#ff3b4e;
+  --acc:#ffcc33;
+  --judge: 0.72;
+}
+*{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
+html,body{margin:0;padding:0;height:100%;overflow:hidden;background:var(--bg);
+  color:var(--txt);font:14px/1.4 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Noto Sans SC",sans-serif;
+  overscroll-behavior:none; touch-action:none; user-select:none; -webkit-user-select:none;}
+#app{position:fixed;inset:0;}
+canvas{position:absolute;inset:0;width:100%;height:100%;touch-action:none;display:block;}
+
+/* ---------- 顶栏 ---------- */
+#top{position:absolute;left:0;right:0;top:0;padding:calc(env(safe-area-inset-top,0px) + 6px) 8px 6px;
+  display:flex;gap:6px;align-items:center;pointer-events:none;z-index:10;
+  background:linear-gradient(#08080ce8,#08080c00);}
+#top > *{pointer-events:auto;}
+.btn{border:1px solid var(--line);background:#15151fee;color:var(--txt);border-radius:10px;
+  padding:7px 11px;font-size:13px;font-weight:600;line-height:1;letter-spacing:.02em;
+  display:inline-flex;align-items:center;gap:5px;cursor:pointer;transition:.12s;white-space:nowrap;}
+.btn:active{transform:scale(.95);background:#22223a;}
+.btn.ghost{background:#0e0e16cc;border-color:#2a2a38;color:#b8b8c8;}
+.btn.on{background:var(--acc);color:#101014;border-color:var(--acc);}
+.btn.pri{background:#2b6cff;border-color:#2b6cff;color:#fff;}
+.btn.danger{background:#3a1420;border-color:#5c2036;color:#ff8098;}
+#title{font-weight:800;letter-spacing:.06em;font-size:12px;color:var(--dim);margin-right:auto;
+  text-transform:uppercase;display:none;}
+
+/* ---------- 底栏 ---------- */
+#bottom{position:absolute;left:0;right:0;bottom:0;padding:8px 8px calc(env(safe-area-inset-bottom,0px) + 8px);
+  display:flex;flex-direction:column;gap:7px;pointer-events:none;z-index:10;
+  background:linear-gradient(#08080c00,#08080cf2 40%);}
+#bottom > *{pointer-events:auto;}
+.row{display:flex;gap:6px;align-items:center;}
+.row.wrap{flex-wrap:wrap;}
+
+/* 进度条 */
+#seekWrap{height:22px;display:flex;align-items:center;}
+#seek{position:relative;height:6px;flex:1;background:#1c1c28;border-radius:99px;cursor:pointer;}
+#seekFill{position:absolute;left:0;top:0;bottom:0;background:#3b6cff;border-radius:99px;width:0;}
+#seekHead{position:absolute;top:50%;width:14px;height:14px;border-radius:50%;background:#fff;
+  transform:translate(-50%,-50%);left:0;box-shadow:0 0 8px #3b6cff;}
+
+/* 主按钮 */
+#playBtn{width:64px;height:52px;border-radius:14px;font-size:22px;justify-content:center;padding:0;}
+#timeLbl{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--dim);
+  min-width:88px;text-align:center;letter-spacing:.02em;}
+#beatLbl{font-family:ui-monospace,Menlo,monospace;font-size:11px;color:var(--acc);min-width:70px;text-align:center;}
+
+/* ---------- 抽屉 ---------- */
+#panel{position:absolute;inset:auto 0 0 0;max-height:82vh;overflow-y:auto;z-index:30;
+  background:#101018f8;border-top:1px solid #2b2b3a;border-radius:18px 18px 0 0;
+  padding:14px 14px calc(env(safe-area-inset-bottom,0px) + 80px);
+  transform:translateY(101%);transition:transform .22s cubic-bezier(.2,.8,.2,1);
+  backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);}
+#panel.show{transform:translateY(0);}
+#panel h3{margin:16px 0 8px;font-size:11px;letter-spacing:.12em;color:var(--dim);
+  text-transform:uppercase;font-weight:700;}
+#panel h3:first-child{margin-top:2px;}
+.field{display:flex;align-items:center;gap:10px;margin:9px 0;}
+.field label{flex:0 0 84px;font-size:13px;color:#b0b0c0;}
+.field input[type=text],.field input[type=number],.field select{
+  flex:1;min-width:0;background:#08080e;border:1px solid #2a2a3a;color:var(--txt);
+  border-radius:9px;padding:9px 10px;font-size:16px;font-family:inherit;outline:none;}
+.field input:focus,.field select:focus{border-color:#3b6cff;}
+.field .unit{color:var(--dim);font-size:12px;flex:0 0 auto;}
+.seg{display:flex;gap:4px;flex:1;flex-wrap:wrap;}
+.seg button{flex:1;min-width:52px;background:#0a0a12;border:1px solid #26263a;color:#a0a0b4;
+  border-radius:8px;padding:8px 4px;font-size:12px;font-weight:600;cursor:pointer;font-family:inherit;}
+.seg button.on{background:#1e2d5a;border-color:#3b6cff;color:#cfe0ff;}
+.hint{font-size:11px;color:#606075;line-height:1.55;margin:8px 0 0;}
+kbd{background:#1c1c28;border:1px solid #33334a;border-radius:4px;padding:1px 5px;font-size:10px;
+  font-family:ui-monospace,monospace;}
+hr{border:0;border-top:1px solid #1e1e2a;margin:14px 0;}
+
+/* ---------- 导出弹层 ---------- */
+#modal{position:absolute;inset:0;z-index:40;background:#000000cc;display:none;
+  align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(6px);}
+#modal.show{display:flex;}
+#modalBox{width:100%;max-width:420px;background:#12121b;border:1px solid #2b2b3a;
+  border-radius:18px;padding:16px;max-height:86vh;overflow-y:auto;}
+#modalBox h2{margin:0 0 4px;font-size:17px;}
+#modalBox p{margin:0 0 14px;font-size:12px;color:var(--dim);line-height:1.55;}
+.expBtn{width:100%;justify-content:flex-start;margin-bottom:8px;padding:13px 14px;
+  font-size:14px;border-radius:12px;}
+.expBtn small{display:block;font-weight:400;font-size:11px;color:#8c8ca2;margin-top:3px;letter-spacing:0;}
+.expBtn.on small{color:#3a3a20;}
+
+/* toast */
+#toast{position:absolute;left:50%;top:calc(env(safe-area-inset-top,0px) + 62px);transform:translate(-50%,-12px);
+  background:#1f1f2efa;border:1px solid #3a3a52;color:#e8e8f0;padding:9px 16px;border-radius:99px;
+  font-size:13px;z-index:50;opacity:0;transition:.22s;pointer-events:none;max-width:88vw;text-align:center;}
+#toast.show{opacity:1;transform:translate(-50%,0);}
+
+/* 空状态 */
+#empty{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;
+  justify-content:center;gap:14px;text-align:center;padding:28px;z-index:5;}
+#empty h1{font-size:24px;margin:0;letter-spacing:-.02em;
+  background:linear-gradient(92deg,#c24b99,#00e5ff 45%,#3dff5a 72%,#ff3b4e);
+  -webkit-background-clip:text;background-clip:text;color:transparent;}
+#empty p{margin:0;color:var(--dim);font-size:13px;line-height:1.7;max-width:300px;}
+#empty .big{padding:16px 26px;font-size:16px;border-radius:14px;}
+#empty.hide{display:none;}
+
+/* 未播放遮罩提示 */
+#pauseVeil{position:absolute;inset:0;z-index:4;display:none;}
+#pauseVeil.show{display:block;}
+</style>
+</head>
+<body>
+<div id="app">
+  <canvas id="cv"></canvas>
+
+  <div id="empty">
+    <h1>敲谱机</h1>
+    <p>放一首歌，按着节拍敲屏幕。<br>屏幕横分四块 = 左 · 下 · 上 · 右。<br>敲完直接导出 PE / CNE / V-Slice 谱面。</p>
+    <button class="btn pri big" id="pickBtn">选一首歌</button>
+    <input type="file" id="file" accept="audio/*,.mp3,.ogg,.wav,.m4a,.flac" hidden>
+    <p style="font-size:11px;color:#4b4b5c;margin-top:4px">音频只在你本机解码，不上传任何地方</p>
+  </div>
+
+  <div id="top">
+    <button class="btn ghost" id="menuBtn">☰</button>
+    <div id="title"></div>
+    <button class="btn ghost" id="undoBtn" title="撤销">↶</button>
+    <button class="btn ghost" id="redoBtn" title="重做">↷</button>
+    <button class="btn ghost" id="clearBtn" title="清空全部">🗑</button>
+    <button class="btn pri" id="expBtn">导出</button>
+  </div>
+
+  <div id="bottom">
+    <div id="seekWrap"><div id="seek"><div id="seekFill"></div><div id="seekHead"></div></div></div>
+    <div class="row">
+      <button class="btn pri" id="playBtn">▶</button>
+      <div style="display:flex;flex-direction:column;gap:2px">
+        <div id="timeLbl">0:00.00 / 0:00</div>
+        <div id="beatLbl">1:1</div>
+      </div>
+      <div style="flex:1"></div>
+      <button class="btn ghost" id="metBtn" title="节拍器">🥁</button>
+      <button class="btn ghost" id="snapBtn" title="吸附">🧲</button>
+      <button class="btn ghost" id="sideBtn" title="当前写谁的谱">我</button>
+      <button class="btn ghost" id="eraseBtn" title="橡皮">✕</button>
+    </div>
+  </div>
+
+  <div id="panel">
+    <h3>歌曲</h3>
+    <div class="field"><label>曲名</label><input type="text" id="fSong" placeholder="My Song" value="My Song"></div>
+    <div class="field"><label>难度名</label><input type="text" id="fDiff" placeholder="normal" value="normal"></div>
+    <div class="field"><label>作曲</label><input type="text" id="fArtist" placeholder="(可空)"></div>
+    <div class="field"><label>谱师</label><input type="text" id="fCharter" placeholder="(可空)"></div>
+
+    <h3>节奏</h3>
+    <div class="field"><label>BPM</label><input type="number" id="fBpm" value="150" min="20" max="400" step="0.001"><span class="unit">拍/分</span></div>
+    <div class="field"><label>细分</label>
+      <div class="seg" id="subdivSeg">
+        <button data-v="1">1/4</button><button data-v="2">1/8</button><button data-v="3">1/12</button>
+        <button data-v="4" class="on">1/16</button><button data-v="6">1/24</button><button data-v="8">1/32</button>
+      </div>
+    </div>
+    <div class="field"><label>滚动</label><input type="range" id="fScroll" min="40" max="240" value="110" style="flex:1"><span class="unit" id="scrollVal">110</span></div>
+
+    <h3>延迟校准</h3>
+    <div class="field"><label>偏移</label>
+      <button class="btn ghost" id="offMinus5">−5</button>
+      <button class="btn ghost" id="offMinus1">−1</button>
+      <input type="number" id="fOffset" value="0" step="1" style="flex:0 0 78px;text-align:center">
+      <button class="btn ghost" id="offPlus1">+1</button>
+      <button class="btn ghost" id="offPlus5">+5</button>
+    </div>
+    <div class="field"><label></label><button class="btn" id="calibBtn" style="flex:1;justify-content:center">自动校准（跟着鼓点敲 8 下）</button></div>
+    <p class="hint">敲出来的音符总比该在的位置<b>早</b> → 偏移调大；总<b>晚</b> → 调小。自动校准会测你的设备“声音到耳朵 + 手指到屏幕”这段延迟。</p>
+    <h3>事后整体挪</h3>
+    <div class="field"><label>全部音符</label>
+      <div class="seg">
+        <button data-shift="-10">−10ms</button><button data-shift="-5">−5ms</button>
+        <button data-shift="5">+5ms</button><button data-shift="10">+10ms</button>
+      </div>
+    </div>
+    <p class="hint">写完发现整谱统一偏了就用这个，比重新敲一遍省事。</p>
+
+    <h3>导出用</h3>
+    <div class="field"><label>角色·我</label><input type="text" id="fP1" value="bf"></div>
+    <div class="field"><label>角色·对手</label><input type="text" id="fP2" value="dad"></div>
+    <div class="field"><label>角色·观众</label><input type="text" id="fP3" value="gf"></div>
+    <div class="field"><label>场景</label><input type="text" id="fStage" value="stage"></div>
+    <div class="field"><label>游戏速度</label><input type="number" id="fSpeed" value="2.0" step="0.05" min="0.1" max="10"><span class="unit">speed</span></div>
+    <p class="hint">这个只写进谱面文件，是游戏里音符下落的速度，跟你现在看到的滚动快慢无关。</p>
+
+    <hr>
+    <div class="row"><button class="btn ghost" id="closePanel" style="flex:1;justify-content:center">收起</button></div>
+    <p class="hint">快捷键：<kbd>空格</kbd> 播放/暂停 · <kbd>Z</kbd> 撤销 · <kbd>Shift+Z</kbd> 重做 · <kbd>D</kbd> 左 <kbd>F</kbd> 下 <kbd>J</kbd> 上 <kbd>K</kbd> 右（桌面键盘）</p>
+  </div>
+
+  <div id="modal">
+    <div id="modalBox">
+      <h2>导出谱面</h2>
+      <p id="expSummary"></p>
+      <button class="btn expBtn" id="expPsych">Psych Engine<small>0.6.x / 0.7.x · song.json 单文件</small></button>
+      <button class="btn expBtn" id="expCne">Codename Engine<small>原生格式 · chart + meta.json</small></button>
+      <button class="btn expBtn" id="expVSlice">V-Slice<small>FNF 官方 0.5+ · metadata + chart.json</small></button>
+      <hr>
+      <button class="btn expBtn ghost" id="expProject">保存工程 .json<small>含音频名与全部设置，可再导入</small></button>
+      <button class="btn expBtn ghost" id="impProject">导入工程 .json<small>接着上次的改</small></button>
+      <input type="file" id="projFile" accept=".json,application/json" hidden>
+      <div class="row" style="margin-top:10px"><button class="btn ghost" id="closeModal" style="flex:1;justify-content:center">关闭</button></div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
+</div>
+<script>
+</script>
+</body>
+</html>

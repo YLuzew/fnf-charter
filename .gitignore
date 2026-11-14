@@ -1,0 +1,4 @@
+*.pyc
+__pycache__/
+.DS_Store
+敲谱机.html
